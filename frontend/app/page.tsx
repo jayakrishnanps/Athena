@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import Image from "next/image";
+import { useEffect, useState, useRef } from "react";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -37,12 +38,18 @@ const FEATURES = [
   },
 ];
 
+const HERO_VERBS = ["Research smarter", "Learn faster", "Synthesize deeper"];
+
 export default function LandingPage() {
   const [backendStatus, setBackendStatus] = useState<
     "checking" | "online" | "offline"
   >("checking");
+  
+  const [verbIndex, setVerbIndex] = useState(0);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   useEffect(() => {
+    // Backend health check
     const checkBackend = async () => {
       try {
         const res = await fetch(`${BACKEND_URL}/api/health/`, {
@@ -57,22 +64,41 @@ export default function LandingPage() {
         setBackendStatus("offline");
       }
     };
-
     checkBackend();
+
+    // Cycling text effect
+    const interval = setInterval(() => {
+      setVerbIndex((prev) => (prev + 1) % HERO_VERBS.length);
+    }, 3000);
+
+    // Intersection Observer for scroll animations
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-visible");
+          }
+        });
+      },
+      { threshold: 0.1, rootMargin: "0px 0px -50px 0px" }
+    );
+
+    document.querySelectorAll(".animate-on-scroll").forEach((el) => {
+      observerRef.current?.observe(el);
+    });
 
     // Track mouse position for glow effect on feature cards
     const handleMouse = (e: MouseEvent) => {
-      document.documentElement.style.setProperty(
-        "--mouse-x",
-        `${e.clientX}px`
-      );
-      document.documentElement.style.setProperty(
-        "--mouse-y",
-        `${e.clientY}px`
-      );
+      document.documentElement.style.setProperty("--mouse-x", `${e.clientX}px`);
+      document.documentElement.style.setProperty("--mouse-y", `${e.clientY}px`);
     };
     window.addEventListener("mousemove", handleMouse);
-    return () => window.removeEventListener("mousemove", handleMouse);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("mousemove", handleMouse);
+      observerRef.current?.disconnect();
+    };
   }, []);
 
   return (
@@ -86,15 +112,12 @@ export default function LandingPage() {
       <div className="page">
         {/* ── Navigation ── */}
         <nav className="nav" id="main-nav">
-          <div className="nav__logo">
-            <span className="nav__logo-icon">⚡</span>
+          <div className="nav__logo" style={{ color: "var(--accent-1)" }}>
             Athena
           </div>
           <ul className="nav__links">
             <li>
-              <a className="nav__link" href="#features">
-                Features
-              </a>
+              <a className="nav__link" href="#features">Features</a>
             </li>
             <li>
               <a
@@ -113,14 +136,15 @@ export default function LandingPage() {
         </nav>
 
         {/* ── Hero ── */}
-        <section className="hero" id="hero">
-          <div className="hero__badge">
-            <span className="hero__badge-dot" />
-            Open-Source AI Research Tool
+        <section className="hero" id="hero" style={{ paddingBottom: "2rem" }}>
+          <div style={{ marginBottom: "0rem" }}>
+            <Image src="/athenalogoblackgold.png" alt="Athena Logo" width={800} height={300} style={{ objectFit: 'contain' }} priority />
           </div>
 
-          <h1 className="hero__title">
-            Research smarter
+          <h1 className="hero__title" style={{ minHeight: "2.2em" }}>
+            <span style={{ display: "inline-block", transition: "opacity 0.5s", opacity: 1 }} key={verbIndex}>
+              {HERO_VERBS[verbIndex]}
+            </span>
             <br />
             with <span className="hero__title-gradient">Athena</span>
           </h1>
@@ -149,21 +173,79 @@ export default function LandingPage() {
           <div className="hero__status">
             <span
               className={`hero__status-dot ${
-                backendStatus === "offline"
-                  ? "hero__status-dot--offline"
-                  : ""
+                backendStatus === "offline" ? "hero__status-dot--offline" : ""
               }`}
             />
             {backendStatus === "checking" && "Checking backend…"}
             {backendStatus === "online" && "Backend connected — API live"}
-            {backendStatus === "offline" &&
-              "Backend offline — start Django server"}
+            {backendStatus === "offline" && "Backend offline — start Django server"}
+          </div>
+
+          {/* ── Mock UI Window ── */}
+          <div className="mock-ui">
+            <div className="mock-ui__header">
+              <span className="mock-ui__dot" />
+              <span className="mock-ui__dot" />
+              <span className="mock-ui__dot" />
+            </div>
+            <div className="mock-ui__body">
+              <div className="mock-ui__sidebar">
+                <div className="mock-ui__skeleton-block">
+                  <div className="mock-ui__skeleton-title" />
+                  <div className="mock-ui__skeleton-line" />
+                  <div className="mock-ui__skeleton-line" />
+                  <div className="mock-ui__skeleton-line short" />
+                </div>
+                <div className="mock-ui__skeleton-block" style={{ opacity: 0.5 }}>
+                  <div className="mock-ui__skeleton-title" />
+                  <div className="mock-ui__skeleton-line" />
+                  <div className="mock-ui__skeleton-line short" />
+                </div>
+                <div className="mock-ui__skeleton-block" style={{ opacity: 0.3 }}>
+                  <div className="mock-ui__skeleton-title" />
+                  <div className="mock-ui__skeleton-line" />
+                </div>
+              </div>
+              <div className="mock-ui__main">
+                <div className="mock-ui__chat-bubble mock-ui__chat-bubble--user">
+                  Can you summarize the key findings from the uploaded research papers on quantum computing?
+                </div>
+                <div className="mock-ui__chat-bubble mock-ui__chat-bubble--ai">
+                  Based on the 3 documents provided, the main breakthrough is the demonstration of fault-tolerant quantum error correction. The authors achieved a logical error rate lower than the physical error rate...
+                </div>
+                <div className="mock-ui__input-area">
+                  <div className="mock-ui__input">
+                    <span>Ask Athena about your documents...</span>
+                    <div className="mock-ui__input-btn">↑</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Trust Banner ── */}
+        <section className="trust-banner">
+          <p className="trust-banner__text">Built for modern minds everywhere</p>
+          <div className="trust-banner__logos-wrapper">
+            <div className="trust-banner__logos">
+              {/* Duplicate list for seamless scrolling */}
+              {[...Array(2)].map((_, i) => (
+                <div key={i} style={{ display: "flex", gap: "5rem" }}>
+                  <div className="trust-banner__logo">Research Labs</div>
+                  <div className="trust-banner__logo">Universities</div>
+                  <div className="trust-banner__logo">Data Scientists</div>
+                  <div className="trust-banner__logo">Open Source</div>
+                  <div className="trust-banner__logo">Innovators</div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
         {/* ── Features ── */}
         <section className="features" id="features">
-          <div className="features__header">
+          <div className="features__header animate-on-scroll">
             <p className="features__label">Capabilities</p>
             <h2 className="features__title">
               Everything you need to understand anything
@@ -173,7 +255,8 @@ export default function LandingPage() {
           <div className="features__grid">
             {FEATURES.map((f, i) => (
               <article
-                className="feature-card"
+                className="feature-card animate-on-scroll"
+                style={{ transitionDelay: `${i * 0.1}s` }}
                 key={i}
                 id={`feature-card-${i}`}
               >
@@ -199,12 +282,8 @@ export default function LandingPage() {
                 GitHub
               </a>
             </li>
-            <li>
-              <span className="footer__link">Docs</span>
-            </li>
-            <li>
-              <span className="footer__link">Privacy</span>
-            </li>
+            <li><span className="footer__link">Docs</span></li>
+            <li><span className="footer__link">Privacy</span></li>
           </ul>
         </footer>
       </div>
